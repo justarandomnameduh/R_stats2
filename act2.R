@@ -21,7 +21,7 @@ library(tidyverse)
 library(caret)
 
 ### Data loading
-newsPopularity = read.csv("OnlineNewsPopularity.csv")
+newsPopularityData = read.csv("OnlineNewsPopularity.csv")
 
 # Check for NaN values
 sum(is.na(newsPopularity))
@@ -30,11 +30,15 @@ sum(is.na(newsPopularity))
 #### First, we follow the same analyzing step from activity 1
 ### Descriptive statistic:
 str(newsPopularity)
-# url is the only chr feature
-urlNews <- copy(newsPopularity$url)
+# Remove non-predictive attributes
+newsPopularity = newsPopularityData[,-1:-2]
+to_remove <- c("char1", "char2")
+my_df[ , !(names(my_df) %in% to_remove)]
 
-newsPop_nourl = newsPopularity[,-1]
-dfSummary <- data.frame(rbind(summary(newsPop_nourl)))
-dfSummary <- t(dfSummary)
+
+
+stat_newsPop <- descr(as.data.frame(newsPopularity), transpose = TRUE,
+      stats = c('mean', 'sd', 'min', 'max', 'med',
+                'Q1', 'IQR', 'Q3'))
 
                        
