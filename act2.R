@@ -116,6 +116,28 @@ dev.off()
 # between shares and days of the week
 # We first create a column 'weekday' - an ordinal categorical variable
 
-newsPopularity_weekday <- copy(newsPopularity)
-newsPopularity_weekday$weekday <- 0
-
+newsPopularity$weekday <- copy(newsPopularity$is_weekend)
+for(i in 1:nrow(newsPopularity)){
+  if (newsPopularity$weekday_is_monday[i] == 1){
+    newsPopularity$weekday[i] = 0
+  }
+  if (newsPopularity$weekday_is_tuesday[i] == 1){
+    newsPopularity$weekday[i] = 1
+  }
+  if (newsPopularity$weekday_is_wednesday[i] == 1){
+    newsPopularity$weekday[i] = 2
+  }
+  if (newsPopularity$weekday_is_thursday[i] == 1){
+    newsPopularity$weekday[i] = 3
+  }
+  if (newsPopularity$weekday_is_friday[i] == 1){
+    newsPopularity$weekday[i] = 4
+  }
+  if (newsPopularity$weekday_is_saturday[i] == 1){
+    newsPopularity$weekday[i] = 5
+  }
+  if (newsPopularity$weekday_is_sunday[i] == 1){
+    newsPopularity$weekday[i] = 6
+  }
+}
+newsPopularity <- newsPopularity %>% select(-wDay)
