@@ -153,21 +153,22 @@ leveneTest(shares ~ weekday, data = newsPopularity_copy)
 # significant level of 0.05 -> no evidence to reject 
 # the null hypothesis - variance among groups is equal
 
-# Shapiro-Wilk test to check normality assumption
+
+# For the hypothesis of normality, with large dataset, 
+# we can almost guarantee that we can reject such hypothesis.
+# But for the sake of demonstration, we will use
+# Shapiro-Wilk test to check normality assumption.
 # Since the maximum sample size is 5000, we randomly take
 # 5000 samples from the residuals
 residual <- sample(residuals(one_way_weekday), 5000)
 shapiro.test(residual)
-# p-value obtains from shapiro-wilk test is significantly < 0.01,
+# p-value obtains from shapiro-wilk test is ~= 0,
 # we can reject the H_0 and conclude that the data is non-normal
 # at very high certainty
 
-summary(one_way_weekday)
-png("oneway_weekday_boxplot.png", width = 1000, height = 700)
-boxplot(newsPopularity_copy$shares ~ newsPopularity_copy$weekday,
-        main = "Shares by day", xlab = "Day", ylab = "Shares",
-        col = 1:7, las = 1)
-dev.off()
+# Since the condition about normality is not satisfied,
+# we cannot consider the result of one-way-ANOVA of weekday
+
 # boxplot contain outliers thus cannot portrait the box clearly
 # We have to remove outliers
 Q1 <- quantile(newsPopularity_copy$shares, .25)
@@ -184,16 +185,12 @@ boxplot(no_outliers$shares ~ no_outliers$weekday,
 dev.off()
 # From the boxplot, we can see that saturday has most shares
 # (the mean of shares is larger than the other days)
-# To confirm this, we use Tukey's HSD test to test the
-# differences between pairs of days 
+
+# We cannot confirm this, since useing Tukey's HSD test 
+# assumes normal data with equal variances.
+# But for the sake of demonstration, we use
 # TukeyHSD test to check difference between pairs of groups
 TukeyHSD(one_way_weekday)
-# Although the pairs 5-1 and 5-3 < 0.05 and pair 5-4 and 5-2 < 0.1
-# Pair 5-0 = 0.6327 shows that the effect of Monday and Saturday
-# are not statistically different from each other.
-# We then cannot confirm the initial conjecture that
-# Saturday is the best day
-
 
 ## Similarly, we do the same procedure for data channel
 ## We use one-way ANOVA to check what is the 
@@ -241,7 +238,8 @@ shapiro.test(residual)
 # we can reject the H_0 and conclude that the data is 
 # non-normal at very high certainty
 
-summary(one_way_channel)
+# The conditions for one-way-ANOVA of channel are not
+# satisfied so we do not consider the result
 
 no_outliers <- subset(newsPopularity_copy, 
                       newsPopularity_copy$shares > (Q1 - 1.5*IQR) &
@@ -253,10 +251,38 @@ boxplot(no_outliers$shares ~ no_outliers$channel,
 dev.off()
 # From the boxplot, we can see that Business has most shares
 # and World has least shares
-# To confirm this, we use Tukey's HSD test to test the
-# differences between pairs of days 
+# Falling into similar situation with analysis of weekday,
+# we don't have the assumption of normal data with equal variances
 # TukeyHSD test to check difference between pairs of groups
-TukeyHSD(one_way_channel)
-# We cannot support that Business has most shares but
-# We can support World has least shares with ~=0 significance level
 
+## We continue with 2-way ANOVA to find the affection of
+# weekday and channel on shares
+newsPopularity_copy <- copy(newsPopularity)
+newsPopularity_copy$channel <- as.factor(newsPopularity_copy$channel)
+newsPopularity_copy$weekday <- as.factor(newsPopularity_copy$weekday)
+
+two_way <- aov(shares~channel*weekday,data=newsPopularity_copy)
+
+# LeveneTest to check homogeneity of variance assumption
+leveneTest(shares~channel*weekday, data = newsPopularity_copy)
+# Levene's test with p-value ~= 0 suggests that the variance
+# across groups is statistically different
+
+# Shapiro-Wilk test to check normality assumption
+# Since the maximum sample size is 5000, we randomly take
+# 5000 samples from the residuals
+residual2 <- sample(residuals(object = two_way), 5000)
+shapiro.test(x = residual2)
+# Shapiro-Wilk test with p-value ~=0 suggests that the
+# residuals does not follow normal distribution
+# The conditions for 2-way ANOVA about the normality assumption
+# and homogeneity of variances are not satisfied so we
+# do not consider the result of 2-way ANOVA
+
+### Linear regression
+# Train-test split
+
+
+# Simple linear regression
+# Lasso regression
+# Ridge regression
