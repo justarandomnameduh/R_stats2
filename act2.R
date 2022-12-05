@@ -3,8 +3,8 @@
 
 # https://archive.ics.uci.edu/ml/datasets/Online+News+Popularity?fbclid=IwAR2DKTSo17Hpo8yMhT1-z80NfKnVJgT5nSObsKDtYoZJEwHJ277bQPa5g5M
 
-
-
+library(summarytools)
+library(ggplot2)
 library(ggcorrplot)
 library(corrr)
 library(data.table)
@@ -16,10 +16,8 @@ library(tidyr)
 library(dplyr)
 library(corrplot)
 library(RColorBrewer)
-library(summarytools)
 library(tidyverse)
 library(caret)
-library(ggplot2)
 library(reshape2)
 
 ### Data loading
@@ -281,8 +279,44 @@ shapiro.test(x = residual2)
 
 ### Linear regression
 # Train-test split
+set.seed(1)
 
+random_sample <- createDataPartition(newsPopularity$shares, p=0.8, list=FALSE)
+train_data <- newsPopularity[random_sample,]
+test_data <- newsPopularity[-random_sample,]
 
+# We intended to use 10-fold cross validation to assess the linear regression
+train_control <- trainControl(method = "cv", number = 10)
+model <- train(shares ~., data = train_data,
+               method = "lm",
+               trControl = train_control)
 # Simple linear regression
+linreg <- lm(shares ~., data = train_data)
+predictions <- predict(linreg, test_data)
+error_df <- data.frame( R2 = R2(predictions, test_data$shares),
+                        RMSE = RMSE(predictions, test_data$shares),
+                        MAE = MAE(predictions, test_data$shares))
+coef_list <- data.frame(linreg$coefficients)
+summary(linreg)
+View(error_df)
+
+# Simple linear regression without outliers
+Q1 <- quantile(train_data$shares, .25)
+Q3 <- quantile(train_data$shares, .75)
+IQR <- IQR(train_data$shares)
+train_noout <- subset(train_data, 
+                      train_data$shares > (Q1 - 1.5*IQR) &
+                        train_data$shares < (Q3 + 1.5*IQR))
+
+linreg_noout <- lm(shares ~., data = train_noout)
+predictions <- predict(linreg_noout, test_data)
+error_noout_df <- data.frame( R2 = R2(predictions, test_data$shares),
+                        RMSE = RMSE(predictions, test_data$shares),
+                        MAE = MAE(predictions, test_data$shares))
+coef_list_noout <- data.frame(linreg_noout$coefficients)
+summary(linreg_noout)
+View(error_noout_df)
+
+# By remove outliers we can see good change in error
 # Lasso regression
 # Ridge regression
