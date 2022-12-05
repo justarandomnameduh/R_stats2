@@ -19,6 +19,7 @@ library(RColorBrewer)
 library(tidyverse)
 library(caret)
 library(reshape2)
+library(nortest)
 
 ### Data loading
 newsPopularityData = read.csv("OnlineNewsPopularity.csv")
@@ -63,6 +64,7 @@ newsPopularity <- subset(newsPopularity,
 stat_newsPop <- descr(as.data.frame(newsPopularity), transpose = TRUE,
                       stats = c('mean', 'sd', 'min', 'max', 'med',
                                 'Q1', 'IQR', 'Q3'))
+View(stat_newsPop)
 
 # Understanding target variable
 targetMed <- median(newsPopularity$shares)
@@ -110,11 +112,10 @@ legend("topleft", legend = rownames(t(tmpDf)), pch = 15,
        col = 1:nrow(t(tmpDf)))
 dev.off()
 
-## We use one-way ANOVA to check what is the 
-# best day to post articles?
-# We first create a column 'weekday' 
-# - an ordinal categorical variable
+# Convert from binary categorical variables into 
+# ordinal and nominal categorical variables
 
+# weekday - ordinal
 newsPopularity$weekday <- copy(newsPopularity$is_weekend)
 for(i in 1:nrow(newsPopularity)){
   if (newsPopularity$weekday_is_monday[i] == 1){
@@ -139,7 +140,80 @@ for(i in 1:nrow(newsPopularity)){
     newsPopularity$weekday[i] = 6
   }
 }
+
+#channel - nominal
+newsPopularity$channel <- copy(newsPopularity$is_weekend)
+for(i in 1:nrow(newsPopularity)){
+  if (newsPopularity$data_channel_is_lifestyle[i] == 1){
+    newsPopularity$channel[i] = 0
+  }
+  if (newsPopularity$data_channel_is_entertainment[i] == 1){
+    newsPopularity$channel[i] = 1
+  }
+  if (newsPopularity$data_channel_is_socmed[i] == 1){
+    newsPopularity$channel[i] = 2
+  }
+  if (newsPopularity$data_channel_is_tech[i] == 1){
+    newsPopularity$channel[i] = 3
+  }
+  if (newsPopularity$data_channel_is_world[i] == 1){
+    newsPopularity$channel[i] = 4
+  }
+}
+newsPopularity <- newsPopularity %>% select(-dChannel)
 newsPopularity <- newsPopularity %>% select(-wDay)
+
+## QQ Plot for weekday and channel
+# Weekday
+check_normal_weekday <- function(x) {
+  temp <- subset(newsPopularity, newsPopularity$weekday == x)
+  qqnorm(temp$shares, main = paste("Normal Q-Q Plot of ", x))
+  qqline(temp$shares, col = "red")
+  ad.test(temp$shares)
+}
+check_normal_weekday(0)
+
+# The plotting is highly affected by outliers so we remove them
+Q1 <- quantile(newsPopularity$shares, .25)
+Q3 <- quantile(newsPopularity$shares, .75)
+IQR <- IQR(newsPopularity$shares)
+
+no_outliers <- subset(newsPopularity, 
+                      newsPopularity$shares > (Q1 - 1.5*IQR) &
+                        newsPopularity$shares < (Q3 + 1.5*IQR))
+
+check_normal_weekday_noout <- function(x, name) {
+  temp <- subset(no_outliers, no_outliers$weekday == x)
+  qqnorm(temp$shares, main = paste("Normal Q-Q Plot of ", name))
+  qqline(temp$shares, col = "red")
+  ad.test(temp$shares)
+}
+check_normal_weekday_noout(0,"Monday")
+check_normal_weekday_noout(1,"Tuesday")
+check_normal_weekday_noout(2,"Wednesday")
+check_normal_weekday_noout(3,"Thursday")
+check_normal_weekday_noout(4,"Friday")
+check_normal_weekday_noout(5,"Saturday")
+check_normal_weekday_noout(6,"Sunday")
+
+# Channel
+check_normal_channel_noout <- function(x, name) {
+  temp <- subset(no_outliers, no_outliers$channel == x)
+  qqnorm(temp$shares, main = paste("Normal Q-Q Plot of ", name))
+  qqline(temp$shares, col = "red")
+  ad.test(temp$shares)
+}
+check_normal_channel_noout(0,"Lifestyle")
+check_normal_channel_noout(1,"Entertainment")
+check_normal_channel_noout(2,"Social Media")
+check_normal_channel_noout(3,"Tech")
+check_normal_channel_noout(4,"World")
+
+# Anderson-Darling test gives very small value for both features which means
+# that both features does not follow a normal distribution
+
+## We use one-way ANOVA to check what is the 
+# best day to post articles?
 newsPopularity_copy <- copy(newsPopularity)
 newsPopularity_copy$weekday <- as.factor(newsPopularity_copy$weekday)
 
@@ -164,18 +238,10 @@ shapiro.test(residual)
 # we can reject the H_0 and conclude that the data is non-normal
 # at very high certainty
 
-# Since the condition about normality is not satisfied,
-# we cannot consider the result of one-way-ANOVA of weekday
+summary(one_way_weekday)
 
 # boxplot contain outliers thus cannot portrait the box clearly
 # We have to remove outliers
-Q1 <- quantile(newsPopularity_copy$shares, .25)
-Q3 <- quantile(newsPopularity_copy$shares, .75)
-IQR <- IQR(newsPopularity_copy$shares)
-
-no_outliers <- subset(newsPopularity_copy, 
-                      newsPopularity_copy$shares > (Q1 - 1.5*IQR) &
-                        newsPopularity_copy$shares < (Q3 + 1.5*IQR))
 png("oneway_weekday_noout_boxplot.png", width = 1000, height = 700)
 boxplot(no_outliers$shares ~ no_outliers$weekday,
         main = "Shares by day", xlab = "Day", ylab = "Shares",
@@ -196,25 +262,7 @@ TukeyHSD(one_way_weekday)
 # We first create a column 'channel' 
 # - an ordinal categorical variable
 
-newsPopularity$channel <- copy(newsPopularity$is_weekend)
-for(i in 1:nrow(newsPopularity)){
-  if (newsPopularity$data_channel_is_lifestyle[i] == 1){
-    newsPopularity$channel[i] = 0
-  }
-  if (newsPopularity$data_channel_is_entertainment[i] == 1){
-    newsPopularity$channel[i] = 1
-  }
-  if (newsPopularity$data_channel_is_socmed[i] == 1){
-    newsPopularity$channel[i] = 2
-  }
-  if (newsPopularity$data_channel_is_tech[i] == 1){
-    newsPopularity$channel[i] = 3
-  }
-  if (newsPopularity$data_channel_is_world[i] == 1){
-    newsPopularity$channel[i] = 4
-  }
-}
-newsPopularity <- newsPopularity %>% select(-dChannel)
+
 newsPopularity_copy <- copy(newsPopularity)
 newsPopularity_copy$channel <- as.factor(newsPopularity_copy$channel)
 
@@ -235,9 +283,7 @@ shapiro.test(residual)
 # p-value obtains from shapiro-wilk test ~= 0,
 # we can reject the H_0 and conclude that the data is 
 # non-normal at very high certainty
-
-# The conditions for one-way-ANOVA of channel are not
-# satisfied so we do not consider the result
+summary(one_way_channel)
 
 no_outliers <- subset(newsPopularity_copy, 
                       newsPopularity_copy$shares > (Q1 - 1.5*IQR) &
@@ -273,9 +319,7 @@ residual2 <- sample(residuals(object = two_way), 5000)
 shapiro.test(x = residual2)
 # Shapiro-Wilk test with p-value ~=0 suggests that the
 # residuals does not follow normal distribution
-# The conditions for 2-way ANOVA about the normality assumption
-# and homogeneity of variances are not satisfied so we
-# do not consider the result of 2-way ANOVA
+summary(two_way)
 
 ### Linear regression
 # Train-test split
@@ -311,8 +355,8 @@ train_noout <- subset(train_data,
 linreg_noout <- lm(shares ~., data = train_noout)
 predictions <- predict(linreg_noout, test_data)
 error_noout_df <- data.frame( R2 = R2(predictions, test_data$shares),
-                        RMSE = RMSE(predictions, test_data$shares),
-                        MAE = MAE(predictions, test_data$shares))
+                              RMSE = RMSE(predictions, test_data$shares),
+                              MAE = MAE(predictions, test_data$shares))
 coef_list_noout <- data.frame(linreg_noout$coefficients)
 summary(linreg_noout)
 View(error_noout_df)
