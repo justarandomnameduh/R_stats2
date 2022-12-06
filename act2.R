@@ -329,11 +329,6 @@ random_sample <- createDataPartition(newsPopularity$shares, p=0.8, list=FALSE)
 train_data <- newsPopularity[random_sample,]
 test_data <- newsPopularity[-random_sample,]
 
-# We intended to use 10-fold cross validation to assess the linear regression
-train_control <- trainControl(method = "cv", number = 10)
-model <- train(shares ~., data = train_data,
-               method = "lm",
-               trControl = train_control)
 # Simple linear regression
 linreg <- lm(shares ~., data = train_data)
 predictions <- predict(linreg, test_data)
@@ -361,6 +356,6 @@ coef_list_noout <- data.frame(linreg_noout$coefficients)
 summary(linreg_noout)
 View(error_noout_df)
 
-# By remove outliers we can see good change in error
-# Lasso regression
-# Ridge regression
+# R-squared does improve on train set but not on test set
+# By remove outliers does not improve R2 and MSE on test
+# So we use our final coefficients of simple linear regression
