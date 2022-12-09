@@ -359,3 +359,43 @@ View(error_noout_df)
 # R-squared does improve on train set but not on test set
 # By remove outliers does not improve R2 and MSE on test
 # So we use our final coefficients of simple linear regression
+
+## Try Ridge and Lasso regression
+library(glmnet)
+library(MLmetrics)
+
+# Ridge
+set.seed(1)
+train.matrix <- model.matrix(shares ~., data = train_data)
+test.matrix <- model.matrix(shares ~., data = test_data)
+# tune the lambda parameter
+grid <- 10^seq(3, -2, by = -0.1)
+ridge.mod <- cv.glmnet(train.matrix, train_data[, "shares"], alpha = 0, lambda = grid, standardize = TRUE)
+# choose the best lambda
+bestlam.ridge <- ridge.mod$lambda.min
+print(bestlam.ridge)
+# Calculate train and test RMSE + R^2 score
+y_train_pred <- predict(ridge.mod, s = bestlam.ridge, newx = train.matrix)
+y_test_pred <- predict(ridge.mod, s = bestlam.ridge, newx = test.matrix)
+print(RMSE(test_data[, "shares"], y_test_pred)) # Test RMSE
+print(R2_Score(y_test_pred, test_data[, "shares"])) # Test R^2 score
+# examine the coefficient estimates
+predict(ridge.mod, type = "coefficients", s = bestlam.ridge) 
+
+# Lasso
+set.seed(1)
+train.matrix <- model.matrix(shares ~., data = train_data)
+test.matrix <- model.matrix(shares ~., data = test_data)
+# tune the lambda parameter
+grid <- 10^seq(3, -2, by = -0.1)
+lasso.mod <- cv.glmnet(train.matrix, train_data[, "shares"], alpha = 1, lambda = grid, standardize = TRUE)
+# choose the best lambda
+bestlam.lasso <- lasso.mod$lambda.min
+print(bestlam.lasso)
+# Calculate train and test RMSE + R^2 score
+y_train_pred <- predict(lasso.mod, s = bestlam.lasso, newx = train.matrix)
+y_test_pred <- predict(lasso.mod, s = bestlam.lasso, newx = test.matrix)
+print(RMSE(test_data[, "shares"], y_test_pred)) # Test RMSE
+print(R2_Score(y_test_pred, test_data[, "shares"])) # Test R^2 score
+# examine the coefficient estimates
+predict(lasso.mod, type = "coefficients", s = bestlam.lasso) 
